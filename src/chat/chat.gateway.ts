@@ -11,7 +11,7 @@ import { Server, Socket } from 'socket.io';
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
-    credentials: true
+    credentials: true,
   },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -33,7 +33,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         users.delete(socket.id);
         this.server.to(room).emit('message', {
           author: 'System',
-          text: `User ${socket.id} left the room`
+          text: `User ${socket.id} left the room`,
         });
       }
     });
@@ -56,28 +56,33 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Notify room
     socket.to(room).emit('message', {
       author: 'System',
-      text: `User ${socket.id} joined the room`
+      text: `User ${socket.id} joined the room`,
     });
 
     // Confirm to joiner
     socket.emit('message', {
       author: 'System',
-      text: `You joined ${room}`
+      text: `You joined ${room}`,
     });
   }
 
   @SubscribeMessage('message')
-  handleMessage(socket: Socket, payload: { room: string; author: string; text: string }) {
-    console.log('Message received:', payload);
-    
-    if (!payload?.room || !this.rooms.get(payload.room)?.has(socket.id)) {
-      console.log('User not in room:', socket.id, payload.room);
+  handleMessage(
+    socket: Socket,
+    payload: { room: string; author: string; text: string },
+  ) {
+    console.log('Message received:', JSON.stringify(payload, null, 2));
+
+    if (!payload?.room) {
+      console.log('Invalid message - no room specified');
       return;
     }
 
+    // Send the actual payload object, not a string
     this.server.to(payload.room).emit('message', {
       author: payload.author,
-      text: payload.text
+      text: payload.text,
+      room: payload.room,
     });
   }
 }
