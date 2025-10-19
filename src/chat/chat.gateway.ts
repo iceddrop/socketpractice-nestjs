@@ -22,7 +22,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleConnection(socket: Socket) {
     console.log('Client connected:', socket.id);
-    socket.emit('welcome', 'Welcome to the chat server!');
+    socket.emit('welcome', 'Welcome to your secret chat server!');
   }
 
   handleDisconnect(socket: Socket) {
