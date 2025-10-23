@@ -58,7 +58,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // helper: emit current registered users to all clients
   private broadcastUsers() {
-    const userList = Array.from(this.users.values()).map(u => ({ id: u.id, name: u.name || u.id }));
+    const userList = Array.from(this.users.values()).map((u) => ({
+      id: u.id,
+      name: u.name || u.id,
+    }));
     this.server.emit('users', userList);
   }
 
@@ -73,7 +76,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(`Registered user ${socket.id} as ${payload.name}`);
     this.broadcastUsers();
     // optional ack
-    socket.emit('message', { author: 'System', text: `Registered as ${payload.name}` });
+    socket.emit('message', {
+      author: 'System',
+      text: `Registered as ${payload.name}`,
+    });
   }
 
   // join can be invoked as socket.emit('join', 'roomName') OR socket.emit('join', { room, isPrivate })
@@ -119,7 +125,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // create-private-chat: forward invite to target user
   // payload: { targetUserId, roomId }
   @SubscribeMessage('create-private-chat')
-  handleCreatePrivateChat(socket: Socket, payload: { targetUserId: string; roomId: string }) {
+  handleCreatePrivateChat(
+    socket: Socket,
+    payload: { targetUserId: string; roomId: string },
+  ) {
     if (!payload?.targetUserId || !payload?.roomId) return;
     const targetSocket = this.server.sockets.sockets.get(payload.targetUserId);
     const fromName = socket.data.name || socket.id;
@@ -131,15 +140,30 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId: payload.roomId,
       });
       // optional: notify creator that invite was sent
-      socket.emit('message', { author: 'System', text: `Invite sent to ${payload.targetUserId}`, room: payload.roomId });
+      socket.emit('message', {
+        author: 'System',
+        text: `Invite sent to ${payload.targetUserId}`,
+        room: payload.roomId,
+      });
     } else {
-      socket.emit('message', { author: 'System', text: `User ${payload.targetUserId} not connected` });
+      socket.emit('message', {
+        author: 'System',
+        text: `User ${payload.targetUserId} not connected`,
+      });
     }
   }
 
   // public or private messages
   @SubscribeMessage('message')
-  handleMessage(socket: Socket, payload: { room?: string; author?: string; text?: string; isPrivate?: boolean }) {
+  handleMessage(
+    socket: Socket,
+    payload: {
+      room?: string;
+      author?: string;
+      text?: string;
+      isPrivate?: boolean;
+    },
+  ) {
     // validate
     if (!payload || !payload.room || !payload.text) {
       console.warn('Invalid message payload from', socket.id, payload);
@@ -164,5 +188,24 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       text: payload.text,
       isPrivate,
     });
+  }
+
+  @SubscribeMessage('leave')
+  handleLeave(socket: Socket, payload: { room?: string }) {
+    const room = payload?.room;
+    if (!room) return;
+
+    // remove from room tracking
+    const set = this.rooms.get(room);
+    if (set && set.has(socket.id)) {
+      set.delete(socket.id);
+      socket.leave(room);
+      this.server.to(room).emit('message', {
+        room,
+        author: 'System',
+        text: `${socket.data?.name || socket.id} left the room`,
+      });
+      if (set.size === 0) this.rooms.delete(room);
+    }
   }
 }
